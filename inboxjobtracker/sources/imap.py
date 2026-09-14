@@ -188,7 +188,21 @@ def fetch(cfg, days):
           file=sys.stderr)
 
     search_link = _search_link(cfg["imap_host"], user)
-    conn = imaplib.IMAP4_SSL(cfg["imap_host"], int(cfg.get("imap_port", 993)))
+    host, port = cfg["imap_host"], int(cfg.get("imap_port", 993))
+    # Without a timeout a network that silently drops port 993 - a VPN, or a
+    # school or office firewall - leaves the TLS handshake hanging for the
+    # system default of about 75 seconds and then raises a bare traceback.
+    try:
+        conn = imaplib.IMAP4_SSL(host, port,
+                                 timeout=int(cfg.get("imap_timeout", 30)))
+    except (TimeoutError, OSError) as exc:
+        sys.exit("Could not reach %s:%d - %s\n"
+                 "The mail server never answered, so this is the network "
+                 "rather than your password.\n"
+                 "A VPN, or a school or office firewall, commonly blocks IMAP "
+                 "while leaving the web open.\n"
+                 "Try again off the VPN, or from another network, to confirm."
+                 % (host, port, exc))
     try:
         conn.login(user, password)
     except imaplib.IMAP4.error as exc:
