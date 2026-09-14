@@ -3,7 +3,7 @@
 
   "_accounts_note": "One file can hold several mailboxes. Settings at this level are shared by all of them; each block under 'accounts' overrides only what differs. Pick one with --account NAME, or JOBTRACKER_ACCOUNT. Delete the accounts block to configure a single mailbox the flat way (source/imap_user at this level) - that still works.",
 
-  "own_addresses": ["you@gmail.com", "you@outlook.com"],
+  "own_addresses": ["ky1015ijobapp@@gmail.com"],
   "lookback_days": 90,
 
   "judge": "off",
@@ -18,9 +18,9 @@
       "source": "imap",
       "imap_host": "imap.gmail.com",
       "imap_port": 993,
-      "imap_user": "you@gmail.com",
+      "imap_user": "ky1015ijobapp@@gmail.com",
       "imap_folders": ["INBOX"],
-      "password_env": "GMAIL_APP_PASSWORD"
+      "password_env": "unqbaunnnhubugje"
     },
 
     "yahoo": {
