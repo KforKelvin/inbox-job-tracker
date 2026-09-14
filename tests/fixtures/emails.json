@@ -251,5 +251,49 @@
     "expect": "Unclear",
     "why": "an unemployment-benefits mail telling you to register on the state job board. No employer, no application, no decision - but it says next step, jobs, applications and resume, so every job-context check waves it through and 'next step' alone scored it as an interview invitation",
     "body": "Hello,\n\nYour next step after applying for Employment Insurance (EI) is to set up your Job Bank account.\n\nTo help you look for work, we will alert you to new jobs.\n\nConnect with employers faster - submit applications in just a few clicks\nGet matched with jobs - create your profile and let employers find you\nBuild or upload your resume\nStay organized - keep everything in one place (resumes, applications, alerts)\n\nYou'll also receive job alerts based on your last occupation.\n\nThank you,\nJob Bank"
+  },
+  {
+    "id": "d51",
+    "folder": "inbox",
+    "from_name": "Talent Acquisition (Do Not Reply)",
+    "from_address": "careers@recruiting.contosohealth.example",
+    "received": "2026-09-11T20:32:00Z",
+    "subject": "Associate Data Engineer-2380521 Opening at Contoso Health",
+    "expect": "Acknowledge",
+    "why": "a receipt. 'In the next stage of the selection process, a recruiter will review your information' says where the process goes, not where the reader is sent, and 'preparing for an interview' is careers-site boilerplate. Together they published a first interview",
+    "body": "Dear Alex,\n\nThank you for applying for the position of Associate Data Engineer, 2380521 with Contoso Health.\n\nIn the next stage of the selection process, a recruiter will review your information to determine if you best meet the qualifications for the position.\n\nPlease visit the Career Guidance section of our website. There you will find resume tips and full transparency into our hiring process - from applying for a position, preparing for an interview and a potential offer of employment.\n\nThank you again for your interest in Contoso Health."
+  },
+  {
+    "id": "d52",
+    "folder": "inbox",
+    "from_name": "",
+    "from_address": "fabrikambuilt@myworkday.com",
+    "received": "2026-08-31T15:24:00Z",
+    "subject": "Thank You For Applying!",
+    "expect": "Acknowledge",
+    "why": "'If you're selected to move forward in the process' - the conditional cue knew 'if you are selected' but not the contraction, so the promise scored 10 and a receipt became a first interview",
+    "body": "Hi Alex,\n\nThank you for applying to Fabrikam Built. We have received your application for the Controls Engineer role. If you're selected to move forward in the process, we will reach out directly.\n\nFabrikam Built Talent Acquisition"
+  },
+  {
+    "id": "d53",
+    "folder": "inbox",
+    "from_name": "Northwind Systems Recruiting",
+    "from_address": "no-reply@gem.com",
+    "received": "2026-09-11T20:51:00Z",
+    "subject": "High Five, Alex! Your application is in with Northwind Systems.",
+    "expect": "Acknowledge",
+    "why": "'If you’re a fit for the role, you’ll hear from us soon to schedule a call' is conditional and was published as a confident first interview; 'your application is in' is the receipt the ack rules did not know; and Gem is the ATS, not the employer",
+    "body": "Hi Alex,\n\nWe're reviewing it now for the Product Operations Analyst I role. If you’re a fit for the role, you’ll hear from us soon to schedule a call.\n\nNorthwind Systems Recruiting"
+  },
+  {
+    "id": "d54",
+    "folder": "inbox",
+    "from_name": "Fabrikam Enterprise",
+    "from_address": "opportunities@careeralerts.careers.fabrikam.example",
+    "received": "2026-08-31T18:57:00Z",
+    "subject": "Shape connected technology with Fabrikam",
+    "expect": "Unclear",
+    "why": "a careers-site advert. Its only advancement word is a recruiter tip about 'the right next step', a weak signal that on its own published a first interview",
+    "body": "New roles picked for you. Watch now. Recruiter tip: tell recruiters why this opportunity is the right next step for you."
   }
 ]

@@ -47,6 +47,11 @@ def build_queue(review, audit, batch_size, audit_share):
     """
     batch_size = max(0, batch_size)
     reserved = min(len(audit), max(1, round(batch_size * audit_share)) if audit else 0)
+    # Strongest signal first. In mailbox order, one 30-day scan spent 19 of its
+    # 40 places on a daily job digest, while the mails that had actually tripped
+    # an interview rule waited behind them unread.
+    review = sorted(review, key=lambda item: -max(
+        (item.get("scores") or {}).values(), default=0))
     chosen_review = review[:batch_size - reserved]
     # Riskiest verdicts first, so a small audit share is spent where being
     # wrong costs most rather than on acknowledgements.

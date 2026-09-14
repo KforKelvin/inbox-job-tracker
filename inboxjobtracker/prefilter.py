@@ -32,7 +32,7 @@ ATS_DOMAINS = (
     "ashbyhq.com", "successfactors.com", "sap.com", "jobvite.com", "workable.com",
     "breezy.hr", "bamboohr.com", "recruitee.com", "teamtailor.com", "avature.net",
     "brassring.com", "silkroad.com", "jazzhr.com", "applytojob.com", "eightfold.ai",
-    "phenompeople.com", "hiringthing.com", "paylocity.com", "dayforcehcm.com",
+    "phenompeople.com", "hiringthing.com", "paylocity.com", "dayforcehcm.com", "gem.com",
     "linkedin.com", "indeed.com", "ziprecruiter.com", "glassdoor.com",
 )
 

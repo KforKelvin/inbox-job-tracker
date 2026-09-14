@@ -95,10 +95,41 @@ def test_advancement_needs_to_be_real(text, expected):
 @pytest.mark.parametrize("address,expected", [
     ("no-reply@us.greenhouse-mail.io", None),
     ("talent@covergenius.kula.ai", None),
+    # Workable sends from its own mail domain, which filed Vego Garden's
+    # receipt under a company called "Workablemail".
+    ("noreply@candidates.workablemail.com", None),
     ("careers@fabrikam.example", "Fabrikam"),
 ])
 def test_ats_vendors_are_never_the_employer(address, expected):
     assert rules.company_from_domain(address) == expected
+
+
+@pytest.mark.parametrize("subject,expected", [
+    ("Thanks for applying to Vego Garden", "Vego Garden"),
+    ("Thanks for applying to M/I Homes", "M/I Homes"),
+])
+def test_a_vendor_sender_name_yields_to_the_employer(subject, expected):
+    """Workable signs its receipts "Workable". Read as the employer, it filed
+    five applications under one company that nobody applied to."""
+    mail = {"from_name": "Workable", "from_address": "noreply@candidates.workablemail.com",
+            "subject": subject, "body": ""}
+    assert rules.guess_company(mail)[0] == expected
+
+
+def test_an_ampersand_joins_a_title():
+    assert rules.position_from_text(
+        "Invitation to interview - Vego Garden",
+        "Thank you for your interest in our Business Systems & Automation Analyst "
+        "position.") == "Business Systems & Automation Analyst"
+
+
+@pytest.mark.parametrize("variant", ["Dane Street, LLC", "Dane Street LLC", "Dane Street Inc."])
+def test_a_legal_form_is_the_same_employer(variant):
+    assert rules.name_key(variant) == rules.name_key("Dane Street")
+
+
+def test_a_recruiting_prefix_leaves_no_preposition_behind():
+    assert rules.company_from_name("Talent Acquisition at Hack The Box") == "Hack The Box"
 
 
 def test_company_name_is_not_a_job_title():
@@ -106,6 +137,31 @@ def test_company_name_is_not_a_job_title():
     a company called Senior Software Developer."""
     assert rules.company_from_text(
         "Thank you in your interest in Senior Software Developer", "") is None
+
+
+def test_a_folded_subject_keeps_the_whole_title():
+    """A long subject is folded over two header lines. The title pattern stops
+    at the break, so IBM's "Entry Level Back-End Developer" became "Level
+    Back-End Developer" and one application was counted as two roles."""
+    folded = ("Action Required:IBM Assessments for completion Alex - 131025 Entry\r\n"
+              " Level Back-End Developer-Houston-TX")
+    assert rules.position_from_text(folded, "") == "Entry Level Back-End Developer"
+
+
+def test_an_invitation_to_complete_assessments_is_confident():
+    """Only the test tier knew "we invite you to complete", so a real
+    assessment invite scored as a weak guess."""
+    verdict = rules.classify({
+        "subject": "Your Contoso Application: Next Steps",
+        "from_address": "talent@contoso.com", "from_name": "Contoso Talent Acquisition",
+        "body": "That's why we invite you to complete one or more of the following "
+                "assessments. The Coding Assessment helps us understand your "
+                "programming ability for the Back-End Developer position."})
+    assert (verdict["status"], verdict["confidence"]) == (rules.TEST, "high")
+
+
+def test_gem_is_the_ats_not_the_employer():
+    assert rules.company_from_domain("no-reply@appreview.gem.com") is None
 
 
 def test_recruiter_titles_are_not_the_applied_role():
@@ -297,6 +353,17 @@ def test_each_tier_takes_what_the_other_leaves():
     audit = [{"reason": "audit", "rule_status": "Acknowledge"} for _ in range(100)]
     assert len(cli.build_queue(review, audit, 40, 0.25)) == 40
     assert len(cli.build_queue(review, [], 40, 0.25)) == 3
+
+
+def test_the_queue_reads_the_strongest_signals_first():
+    """A daily digest that scored nothing took 19 of 40 places ahead of mails
+    that had tripped an interview rule, which were then published unread."""
+    from inboxjobtracker import cli
+    digests = [{"reason": "uncertain", "rule_status": "Unclear",
+                "scores": {"reject": 0, "next": 0}}] * 5
+    guess = {"reason": "uncertain", "rule_status": "Acknowledge",
+             "scores": {"reject": 0, "next": 9}}
+    assert cli.build_queue(digests + [guess], [], batch_size=1, audit_share=0.25) == [guess]
 
 
 def test_the_audit_share_is_spent_where_being_wrong_costs_most():

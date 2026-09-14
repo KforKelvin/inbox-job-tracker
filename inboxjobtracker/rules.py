@@ -72,6 +72,10 @@ REJECT_RULES = [
 NEXT_RULES = [
     (10, r"(would|we.?d) like to invite you"),
     (10, r"invite you to (an?|the) (interview|assessment|next)"),
+    # "we invite you to complete one or more of the following assessments" is
+    # IBM's test invitation. Only the test tier knew the phrase, so the mail
+    # scored 6 overall on its "Next Steps" subject and was filed as a guess.
+    (10, r"invite you to (complete|take)"),
     (10, r"(schedule|set ?up|arrange|book) (a|an|your) (call|chat|interview|screen|meeting|time)"),
     (10, r"move (you )?forward (with|in) (your |the )?(application|process|candidacy)"),
     (9, r"(phone|video|initial|technical|final) (screen|screening|interview)"),
@@ -147,7 +151,12 @@ NEGATION_CUE = re.compile(
 CONDITIONAL_CUE = re.compile(
     r"\b(if|should|when|once)\s+(we|the (team|recruiter|hiring team)|your application)\b"
     r"[^.!?;\n]*$"
-    r"|\bif you (are|were) (selected|chosen|shortlisted)\b[^.!?;\n]*$"
+    # The contraction and the fit are both common: "If you're selected to move
+    # forward in the process, we will reach out" and "If you're a fit for the
+    # role, you'll hear from us soon to schedule a call" were each published as
+    # a first interview.
+    r"|\bif you(?: are| were|['‘’]re) (selected|chosen|shortlisted|"
+    r"an? (good |strong )?(fit|match))\b[^.!?;\n]*$"
     # The subject of the condition is often dropped or stands in for the
     # application: "If selected, you can expect to hear from us to schedule an
     # initial interview", "If it aligns with what we're looking for, we'll
@@ -211,6 +220,7 @@ ACK_RULES = [
     r"we\s*(%s?(ve|re)|have|had)?\s*(recently\s*)?receiv\w* your application" % APOS,
     r"confirming .{0,20}receiv\w* your application",
     r"your application (has been|was|is) (received|submitted|under review|in review)",
+    r"your application is in\b",
     r"application (has been )?(successfully )?(received|submitted)",
     r"we('?ll| will) (review|be reviewing)",
     r"(our|the) (team|recruiter|hiring team|recruiting team)s? (will|are going to) "
@@ -223,7 +233,7 @@ ATS_DOMAINS = {
     "icims.com", "taleo.net", "oraclecloud.com", "smartrecruiters.com", "ashbyhq.com",
     # Vendor mail/scheduling domains that are NOT just the vendor's main domain —
     # each of these shipped an employer's mail and was read as the employer.
-    "greenhouse-mail.io", "kula.ai", "modernloop.io",
+    "greenhouse-mail.io", "kula.ai", "modernloop.io", "gem.com", "workablemail.com",
     "successfactors.com", "jobvite.com", "workable.com", "breezy.hr", "bamboohr.com",
     "recruitee.com", "teamtailor.com", "avature.net", "brassring.com", "silkroad.com",
     "jazzhr.com", "applytojob.com", "eightfold.ai", "phenompeople.com", "paylocity.com",
@@ -238,13 +248,21 @@ SUBDOMAIN_NOISE = re.compile(
 NAME_NOISE = re.compile(
     r"\b(careers?|recruit(ing|ment|er)?|talent acquisition|talent|hiring team|"
     r"human resources|hr team|hr|no-?reply|do-?not-?reply|notifications?|team|"
-    r"via workday|workday|greenhouse|lever|icims|taleo|smartrecruiters|myworkday)\b",
+    r"via workday|workday|greenhouse|lever|workable|icims|taleo|smartrecruiters|myworkday)\b",
     re.I,
 )
 
 
+# A stage placed "in the next stage of the selection process" is where the
+# process goes, not where the reader is being sent: UnitedHealth Group's receipt
+# continues "a recruiter will review your information". An invitation sends the
+# reader *to* the stage. Only the words directly before the match count, so a
+# sentence that merely contains "in the" somewhere is untouched.
+STAGE_LOCATION_CUE = re.compile(r"\b(in|during|at) the\s+$", re.I)
+
 ADVANCEMENT_CUES = (NEGATION_CUE, CONDITIONAL_CUE, GENERIC_SUBJECT_CUE,
-                    PRECONDITION_CUE, VALEDICTION_CUE, POSSIBILITY_CUE)
+                    PRECONDITION_CUE, VALEDICTION_CUE, POSSIBILITY_CUE,
+                    STAGE_LOCATION_CUE)
 # A rejection is a negation and ends in a farewell, so those two cues cannot be
 # applied to it - they are what it is made of. What still holds is that a
 # hypothetical rejection rejects nobody: "If you see the job moved to an
@@ -503,6 +521,8 @@ def company_from_name(display_name):
     cleaned = NAME_NOISE.sub("", display_name or "")
     cleaned = re.sub(r"[|@()\[\]<>,:\-–—]+", " ", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" .")
+    # "Talent Acquisition at Hack The Box" loses its noise and keeps the "at".
+    cleaned = re.sub(r"^(at|from|with)\s+", "", cleaned, flags=re.I)
     if len(cleaned) < 2 or re.fullmatch(r"[\W\d_]+", cleaned):
         return None
     # A personal name ("Jane Smith") is a recruiter, not the employer.
@@ -512,11 +532,13 @@ def company_from_name(display_name):
 
 
 def company_from_text(subject, body):
+    # "/" belongs in a name: "Thanks for applying to M/I Homes" stopped at the
+    # slash, matched nothing, and the body's first "at <Capitalised>" won.
     patterns = [
-        r"(?:applying|application) (?:to|at|with|for a position at)\s+([A-Z][\w&.\- ]{1,40}?)(?:[,.!\n]|$)",
-        r"your (?:interest in|application (?:to|at|with))\s+([A-Z][\w&.\- ]{1,40}?)(?:[,.!\n]|$)",
-        r"(?:position|role|opportunity) (?:at|with)\s+([A-Z][\w&.\- ]{1,40}?)(?:[,.!\n]|$)",
-        r"\bat\s+([A-Z][\w&.\-]*(?:\s+[A-Z][\w&.\-]*){0,3})\s*(?:!|\.|,|\n)",
+        r"(?:applying|application) (?:to|at|with|for a position at)\s+([A-Z][\w&./\- ]{1,40}?)(?:[,.!\n]|$)",
+        r"your (?:interest in|application (?:to|at|with))\s+([A-Z][\w&./\- ]{1,40}?)(?:[,.!\n]|$)",
+        r"(?:position|role|opportunity) (?:at|with)\s+([A-Z][\w&./\- ]{1,40}?)(?:[,.!\n]|$)",
+        r"\bat\s+([A-Z][\w&./\-]*(?:\s+[A-Z][\w&./\-]*){0,3})\s*(?:!|\.|,|\n)",
     ]
     for source in (subject or "", body or ""):
         for pattern in patterns:
@@ -543,7 +565,9 @@ JOB_WORD = (r"(?:Engineer|Developer|Scientist|Analyst|Manager|Architect|Designer
             r"Intern|Officer|Coordinator|Researcher)")
 TITLE_WORD = r"[A-Z][\w.+/&'-]*"
 TITLE_RE = re.compile(
-    r"\b((?:" + SENIORITY + r"\s+)?(?:" + TITLE_WORD + r"[ -]){0,4}" + JOB_WORD +
+    # " & " joins two qualifiers: "Business Systems & Automation Analyst" lost its
+    # first half and split one application across two titles.
+    r"\b((?:" + SENIORITY + r"\s+)?(?:" + TITLE_WORD + r"(?:[ -]|\s+&\s+)){0,4}" + JOB_WORD +
     r"(?:\s+(?:I{1,3}|IV|V|\d))?"
     r"(?:,\s*" + TITLE_WORD + r"(?:[ &/-]+" + TITLE_WORD + r"){0,4})?"
     r"(?:\s*\([^)]{1,28}\))?)"
@@ -564,7 +588,12 @@ RECRUITER_TITLE = re.compile(
 
 
 def position_from_text(subject, body):
-    for source in (subject or "", (body or "")[:1500]):
+    # A long subject arrives folded over two header lines ("... 131025 Entry\r\n
+    # Level Back-End Developer"), and the title pattern does not cross a line
+    # break, so IBM's role lost its first word and was counted twice. Only the
+    # subject is unfolded: in the body a line break really does end the title.
+    subject = re.sub(r"\r?\n[ \t]+", " ", subject or "")
+    for source in (subject, (body or "")[:1500]):
         for match in TITLE_RE.finditer(source):
             value = re.sub(r"\s{2,}", " ", match.group(1)).strip(" .,-–—")
             value = REQ_ID.sub("", value)
@@ -579,7 +608,11 @@ def position_from_text(subject, body):
 def name_key(name):
     """Fold spelling differences that mean the same employer: 'Gitlab'/'GitLab',
     and 'Contosolabs' (titlecased from a domain, which cannot know where
-    the word break goes) vs 'Contoso Labs'."""
+    the word break goes) vs 'Contoso Labs'. A trailing legal form is not part of
+    the name either: Workable's receipt said 'Dane Street', the employer's own
+    mail 'Dane Street, LLC', and one application became two rows."""
+    name = re.sub(r"[\s,]+(llc|l\.l\.c\.?|inc\.?|ltd\.?|corp\.?|plc|llp)\s*$", "",
+                  name, flags=re.I)
     return re.sub(r"[^a-z0-9]", "", name.casefold())
 
 
@@ -796,6 +829,14 @@ def classify(cand):
             # send it to the agent to read rather than banking a Pass.
             confidence = "low"
             note = "receipt language alongside next-round wording"
+            # And publish the receipt meanwhile, not the interview. The queue
+            # holds a fixed number of mails, so a low-confidence verdict can go
+            # unread for a run - and until then it sat in the CSV as a first
+            # interview. A receipt is the half of the mail that is certain. A
+            # test invite keeps its status: the assessment link is the point of
+            # the mail, and receipt wording around it is incidental.
+            if advance == INTERVIEW:
+                status = ACK
     elif rej >= 8 and nxt >= 8:
         status = REJECT if rej > nxt else advance
         note = "both reject and next-round language present (%d vs %d)" % (rej, nxt)
@@ -811,7 +852,13 @@ def classify(cand):
     elif rej > nxt and rej >= 4:
         status, note = REJECT, "weak reject signal only"
     elif nxt > rej and nxt >= 4:
-        status, note = advance, "weak next-round signal only"
+        # A lone "next step" or "interview" is not an invitation: it was a
+        # careers-site advert ("the right next step"), a portal footer and a
+        # scheduling vendor's signature, each published as a first interview.
+        # Held out of the CSV and queued, so a reader decides. A test keeps its
+        # status for the reason given above.
+        status = advance if advance == TEST else UNCLEAR
+        note = "weak next-round signal only"
     else:
         status, note = UNCLEAR, "no decisive language"
 
